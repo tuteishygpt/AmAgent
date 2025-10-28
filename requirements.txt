@@ -1,0 +1,4 @@
+pydantic==1.10.13
+pytest==8.2.2
+google-adk
+google-genai
