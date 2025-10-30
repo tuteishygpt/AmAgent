@@ -1,12 +1,19 @@
-"""GADK tool wrappers around the low-level Amedis client."""
+"""ADK tool wrappers around the low-level Amedis client."""
 
 from __future__ import annotations
 
+import os
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
 import amedis_client
+
+
+DEFAULT_GUEST_TOKEN = os.getenv(
+    "AMEDIS_GUEST_TOKEN",
+    "Q9j87S4FV12e86475e82V5d44S7c2c2bb_35",
+)
 
 
 class BaseToolInput(BaseModel):
@@ -25,7 +32,13 @@ class DirectionItem(BaseModel):
 
 
 class DirectionsInput(BaseToolInput):
-    token: str = Field(description="Токен доступу пацыента")
+    token: str = Field(
+        default=DEFAULT_GUEST_TOKEN,
+        description=(
+            "Токен доступу пацыента. Па змаўчанні выкарыстоўваецца госцевы токен "
+            "да аўтарызацыі."
+        ),
+    )
 
 
 class DirectionsOutput(BaseModel):
@@ -59,7 +72,13 @@ class DoctorItem(BaseModel):
 
 
 class DoctorsInput(BaseToolInput):
-    token: str = Field(description="Токен доступу пацыента")
+    token: str = Field(
+        default=DEFAULT_GUEST_TOKEN,
+        description=(
+            "Токен доступу пацыента. Па змаўчанні выкарыстоўваецца госцевы токен "
+            "да аўтарызацыі."
+        ),
+    )
     direction_id: Optional[str] = Field(
         default=None, description="Ідэнтыфікатар напрамку"
     )
@@ -98,7 +117,13 @@ class ServiceItem(BaseModel):
 
 
 class ServicesInput(BaseToolInput):
-    token: str = Field(description="Токен доступу пацыента")
+    token: str = Field(
+        default=DEFAULT_GUEST_TOKEN,
+        description=(
+            "Токен доступу пацыента. Па змаўчанні выкарыстоўваецца госцевы токен "
+            "да аўтарызацыі."
+        ),
+    )
     direction_id: Optional[str] = Field(
         default=None, description="Ідэнтыфікатар напрамку"
     )
@@ -162,7 +187,13 @@ class SlotItem(BaseModel):
 
 
 class ScheduleInput(BaseToolInput):
-    token: str = Field(description="Токен доступу пацыента")
+    token: str = Field(
+        default=DEFAULT_GUEST_TOKEN,
+        description=(
+            "Токен доступу пацыента. Па змаўчанні выкарыстоўваецца госцевы токен "
+            "да аўтарызацыі."
+        ),
+    )
     doctor_id: str = Field(description="Ідэнтыфікатар доктара")
     service_id: Optional[str] = Field(
         default=None, description="Ідэнтыфікатар паслугі"
@@ -204,7 +235,13 @@ class ScheduleTool:
 
 
 class CreateRecordInput(BaseToolInput):
-    token: str = Field(description="Токен доступу пацыента")
+    token: str = Field(
+        default=DEFAULT_GUEST_TOKEN,
+        description=(
+            "Токен доступу пацыента. Па змаўчанні выкарыстоўваецца госцевы токен "
+            "да аўтарызацыі."
+        ),
+    )
     doctor_id: str = Field(description="Ідэнтыфікатар доктара")
     patient_id: str = Field(description="patientAPIId пацыента")
     startAt: str = Field(description="Дата і час пачатку слоту")
@@ -260,7 +297,13 @@ class CreateRecordTool:
 
 
 class ListRecordsInput(BaseToolInput):
-    token: str = Field(description="Токен доступу пацыента")
+    token: str = Field(
+        default=DEFAULT_GUEST_TOKEN,
+        description=(
+            "Токен доступу пацыента. Па змаўчанні выкарыстоўваецца госцевы токен "
+            "да аўтарызацыі."
+        ),
+    )
     patient_id: str = Field(description="patientAPIId пацыента")
 
 
@@ -314,7 +357,13 @@ class ListRecordsTool:
 
 
 class CancelRecordInput(BaseToolInput):
-    token: str = Field(description="Токен доступу пацыента")
+    token: str = Field(
+        default=DEFAULT_GUEST_TOKEN,
+        description=(
+            "Токен доступу пацыента. Па змаўчанні выкарыстоўваецца госцевы токен "
+            "да аўтарызацыі."
+        ),
+    )
     record_id: str = Field(description="Ідэнтыфікатар запісу")
     cancel_status: str = Field(
         default="CAN", description="Статус, на які трэба змяніць запіс"
