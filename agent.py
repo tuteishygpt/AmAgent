@@ -39,7 +39,7 @@ warnings.filterwarnings("ignore", category=UserWarning, module=".*pydantic.*")
 logger = logging.getLogger(__name__)
 
 
-DEFAULT_MODEL = os.getenv("AMEDIS_AGENT_MODEL", "gemini-1.5-flash-002")
+DEFAULT_MODEL = os.getenv("AMEDIS_AGENT_MODEL", "gemini-2.5-flash")
 DEFAULT_AGENT_NAME = os.getenv("AMEDIS_AGENT_NAME", "amedis_online_agent")
 DEFAULT_BASE_URL = os.getenv("AMEDIS_BASE_URL", amedis_client.BASE_URL_DEFAULT)
 
@@ -84,6 +84,16 @@ class AgentSettings:
     name: str = DEFAULT_AGENT_NAME
     model: str = DEFAULT_MODEL
     base_url: str = DEFAULT_BASE_URL
+
+    def __post_init__(self) -> None:
+        self.name = self.name.strip()
+        self.model = self.model.strip()
+        self.base_url = self.base_url.strip()
+        if self.model and not self.model.startswith("gemini-2.5-flash"):
+            logger.warning(
+                "Выкарыстоўваецца мадэль па-за сямействам gemini-2.5-flash: %s",
+                self.model,
+            )
 
 
 def _with_default_base_url(

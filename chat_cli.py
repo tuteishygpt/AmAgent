@@ -18,11 +18,29 @@ from google.adk.sessions.in_memory_session_service import InMemorySessionService
 from google.genai import types
 
 from agent import AgentSettings, build_agent
+from gemini_token import (
+    GEMINI_API_KEY_ENV,
+    ensure_gemini_token,
+    resolve_token_path,
+)
 
 
 _DEFAULT_LOG_PATH = Path("amedis_agent_errors.log")
 _EXIT_COMMANDS = {"/exit", ":exit", "выход", "выхад", "quit"}
 _ERROR_COMMAND = ":errors"
+_FLASH_FAMILY_PREFIX = "gemini-2.5-flash"
+
+
+def _validate_model_choice(value: str) -> str:
+    cleaned = value.strip()
+    if not cleaned.startswith(_FLASH_FAMILY_PREFIX):
+        raise argparse.ArgumentTypeError(
+            (
+                "Падтрымліваюцца толькі мадэлі сям'і %s (атрымана: %s)"
+                % (_FLASH_FAMILY_PREFIX, cleaned)
+            )
+        )
+    return cleaned
 
 
 def _configure_logging(log_path: Optional[Path]) -> Optional[Path]:
@@ -167,7 +185,35 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--model",
         default=None,
-        help="Назва мадэлі Gemini, калі трэба перазаданаць па змаўчанні",
+        type=_validate_model_choice,
+        help="Назва мадэлі Gemini з сям'і gemini-2.5-flash",
+    )
+    parser.add_argument(
+        "--flash-lite",
+        nargs="?",
+        const="gemini-2.5-flash-lite",
+        default=None,
+        metavar="MODEL",
+        help=(
+            "Хуткае пераключэнне на gemini-2.5-flash-lite або іншы яе варыянт. "
+            "Без аргумента выкарыстоўваецца gemini-2.5-flash-lite."
+        ),
+    )
+    parser.add_argument(
+        "--gemini-token",
+        default=None,
+        help="API токен для доступу да мадэляў Gemini",
+    )
+    parser.add_argument(
+        "--save-gemini-token",
+        action="store_true",
+        help="Захаваць перададзены або існы Gemini токен на дыску",
+    )
+    parser.add_argument(
+        "--gemini-token-path",
+        type=Path,
+        default=None,
+        help="Карыстальніцкі шлях для файла з Gemini токенам",
     )
     parser.add_argument(
         "--agent-name",
@@ -198,9 +244,46 @@ def main() -> None:
 
     log_path = None if args.no_log else _configure_logging(args.log_file)
 
+    token_path = resolve_token_path(args.gemini_token_path)
+    gemini_token, token_source = ensure_gemini_token(
+        args.gemini_token,
+        persist=args.save_gemini_token,
+        path=token_path,
+    )
+    if gemini_token:
+        if token_source == "cli":
+            logging.info(
+                "Выкарыстоўваецца Gemini API токен, перададзены праз CLI%s.",
+                " і захаваны" if args.save_gemini_token else "",
+            )
+            if args.save_gemini_token:
+                logging.info("Токен запісаны ў %s", token_path)
+        elif token_source == "env":
+            logging.info(
+                "Выкарыстоўваецца Gemini API токен з %s%s.",
+                GEMINI_API_KEY_ENV,
+                " (захаваны на дыску)" if args.save_gemini_token else "",
+            )
+            if args.save_gemini_token:
+                logging.info("Токен запісаны ў %s", token_path)
+        else:
+            logging.info("Выкарыстоўваецца Gemini API токен з файла %s", token_path)
+    else:
+        logging.warning(
+            "Gemini API токен не знойдзены. Усталюйце %s або выкарыстайце --gemini-token.",
+            GEMINI_API_KEY_ENV,
+        )
+        if args.save_gemini_token:
+            logging.warning(
+                "Флаг --save-gemini-token ігнаруецца, бо токен не знойдзены",
+            )
+
     settings = AgentSettings()
-    if args.model:
-        settings.model = args.model
+    model_choice: Optional[str] = args.model
+    if args.flash_lite is not None:
+        model_choice = _validate_model_choice(args.flash_lite)
+    if model_choice:
+        settings.model = model_choice
     if args.agent_name:
         settings.name = args.agent_name
     if args.base_url:
