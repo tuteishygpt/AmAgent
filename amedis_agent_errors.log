@@ -1,0 +1,271 @@
+2025-10-30 14:00:53,029 [ERROR] agent: Памылка падчас выканання інструмента directions
+Traceback (most recent call last):
+  File "D:\Projekts\AmAgent\agent.py", line 127, in _call
+    result = tool_impl.call(prepared)
+  File "D:\Projekts\AmAgent\tools.py", line 56, in call
+    base_url = input.base_url or amedis_client.BASE_URL_DEFAULT
+               ^^^^^^^^^^^^^^
+AttributeError: 'dict' object has no attribute 'base_url'
+2025-10-30 14:02:19,493 [ERROR] agent: Памылка падчас выканання інструмента directions
+Traceback (most recent call last):
+  File "D:\Projekts\AmAgent\agent.py", line 127, in _call
+    result = tool_impl.call(prepared)
+  File "D:\Projekts\AmAgent\tools.py", line 56, in call
+    base_url = input.base_url or amedis_client.BASE_URL_DEFAULT
+               ^^^^^^^^^^^^^^
+AttributeError: 'dict' object has no attribute 'base_url'
+2025-10-30 14:03:57,773 [ERROR] agent: Памылка падчас выканання інструмента directions
+Traceback (most recent call last):
+  File "D:\Projekts\AmAgent\agent.py", line 127, in _call
+    result = tool_impl.call(prepared)
+  File "D:\Projekts\AmAgent\tools.py", line 56, in call
+    base_url = input.base_url or amedis_client.BASE_URL_DEFAULT
+               ^^^^^^^^^^^^^^
+AttributeError: 'dict' object has no attribute 'base_url'
+2025-10-30 14:04:20,513 [ERROR] agent: Памылка падчас выканання інструмента directions
+Traceback (most recent call last):
+  File "D:\Projekts\AmAgent\agent.py", line 127, in _call
+    result = tool_impl.call(prepared)
+  File "D:\Projekts\AmAgent\tools.py", line 56, in call
+    base_url = input.base_url or amedis_client.BASE_URL_DEFAULT
+               ^^^^^^^^^^^^^^
+AttributeError: 'dict' object has no attribute 'base_url'
+2025-10-30 16:27:21,237 [ERROR] agent: Памылка падчас выканання інструмента schedule
+Traceback (most recent call last):
+  File "D:\Projekts\AmAgent\agent.py", line 144, in _call
+    result = tool_impl.call(prepared)
+  File "D:\Projekts\AmAgent\tools.py", line 200, in call
+    rows = amedis_client.get_schedule(
+        base_url,
+    ...<4 lines>...
+        input.service_id,
+    )
+  File "D:\Projekts\AmAgent\amedis_client.py", line 378, in get_schedule
+    raise RuntimeError(
+        f"Schedule error {response.status_code}: {response.text[:400]}"
+    )
+RuntimeError: Schedule error 400: {"RuMessage":"Проверьте корректность данных","Successfully":false,"Message":"'2023-01-01' is not a valid date"}
+2025-10-30 16:29:38,258 [ERROR] asyncio: Task exception was never retrieved
+future: <Task finished name='Task-34' coro=<AsyncClient.aclose() done, defined at C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py:1978> exception=RuntimeError('Event loop is closed')>
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 1985, in aclose
+    await self._transport.aclose()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_transports\default.py", line 406, in aclose
+    await self._pool.aclose()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_async\connection_pool.py", line 353, in aclose
+    await self._close_connections(closing_connections)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_async\connection_pool.py", line 345, in _close_connections
+    await connection.aclose()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_async\connection.py", line 173, in aclose
+    await self._connection.aclose()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_async\http11.py", line 258, in aclose
+    await self._network_stream.aclose()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_backends\anyio.py", line 53, in aclose
+    await self._stream.aclose()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\anyio\streams\tls.py", line 216, in aclose
+    await self.transport_stream.aclose()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\anyio\_backends\_asyncio.py", line 1314, in aclose
+    self._transport.close()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\asyncio\proactor_events.py", line 109, in close
+    self._loop.call_soon(self._call_connection_lost, None)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 829, in call_soon
+    self._check_closed()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 552, in _check_closed
+    raise RuntimeError('Event loop is closed')
+RuntimeError: Event loop is closed
+2025-10-30 16:30:32,993 [ERROR] asyncio: Task exception was never retrieved
+future: <Task finished name='Task-38' coro=<AsyncClient.aclose() done, defined at C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py:1978> exception=RuntimeError('Event loop is closed')>
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 1985, in aclose
+    await self._transport.aclose()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_transports\default.py", line 406, in aclose
+    await self._pool.aclose()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_async\connection_pool.py", line 353, in aclose
+    await self._close_connections(closing_connections)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_async\connection_pool.py", line 345, in _close_connections
+    await connection.aclose()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_async\connection.py", line 173, in aclose
+    await self._connection.aclose()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_async\http11.py", line 258, in aclose
+    await self._network_stream.aclose()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_backends\anyio.py", line 53, in aclose
+    await self._stream.aclose()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\anyio\streams\tls.py", line 216, in aclose
+    await self.transport_stream.aclose()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\anyio\_backends\_asyncio.py", line 1314, in aclose
+    self._transport.close()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\asyncio\proactor_events.py", line 109, in close
+    self._loop.call_soon(self._call_connection_lost, None)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 829, in call_soon
+    self._check_closed()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 552, in _check_closed
+    raise RuntimeError('Event loop is closed')
+RuntimeError: Event loop is closed
+2025-10-30 16:30:43,809 [ERROR] agent: Памылка падчас выканання інструмента schedule
+Traceback (most recent call last):
+  File "D:\Projekts\AmAgent\agent.py", line 144, in _call
+    result = tool_impl.call(prepared)
+  File "D:\Projekts\AmAgent\tools.py", line 200, in call
+    rows = amedis_client.get_schedule(
+        base_url,
+    ...<4 lines>...
+        input.service_id,
+    )
+  File "D:\Projekts\AmAgent\amedis_client.py", line 378, in get_schedule
+    raise RuntimeError(
+        f"Schedule error {response.status_code}: {response.text[:400]}"
+    )
+RuntimeError: Schedule error 400: {"RuMessage":"Проверьте корректность данных","Successfully":false,"Message":"'2023-11-01' is not a valid date"}
+2025-10-30 16:31:15,727 [ERROR] agent: Памылка падчас выканання інструмента schedule
+Traceback (most recent call last):
+  File "D:\Projekts\AmAgent\agent.py", line 144, in _call
+    result = tool_impl.call(prepared)
+  File "D:\Projekts\AmAgent\tools.py", line 200, in call
+    rows = amedis_client.get_schedule(
+        base_url,
+    ...<4 lines>...
+        input.service_id,
+    )
+  File "D:\Projekts\AmAgent\amedis_client.py", line 378, in get_schedule
+    raise RuntimeError(
+        f"Schedule error {response.status_code}: {response.text[:400]}"
+    )
+RuntimeError: Schedule error 400: {"RuMessage":"Проверьте корректность данных","Successfully":false,"Message":"'2023-12-01' is not a valid date"}
+2025-10-30 16:46:06,263 [ERROR] asyncio: Task exception was never retrieved
+future: <Task finished name='Task-15' coro=<AsyncClient.aclose() done, defined at C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py:1978> exception=RuntimeError('Event loop is closed')>
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 1985, in aclose
+    await self._transport.aclose()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_transports\default.py", line 406, in aclose
+    await self._pool.aclose()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_async\connection_pool.py", line 353, in aclose
+    await self._close_connections(closing_connections)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_async\connection_pool.py", line 345, in _close_connections
+    await connection.aclose()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_async\connection.py", line 173, in aclose
+    await self._connection.aclose()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_async\http11.py", line 258, in aclose
+    await self._network_stream.aclose()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_backends\anyio.py", line 53, in aclose
+    await self._stream.aclose()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\anyio\streams\tls.py", line 216, in aclose
+    await self.transport_stream.aclose()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\anyio\_backends\_asyncio.py", line 1314, in aclose
+    self._transport.close()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\asyncio\proactor_events.py", line 109, in close
+    self._loop.call_soon(self._call_connection_lost, None)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 829, in call_soon
+    self._check_closed()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 552, in _check_closed
+    raise RuntimeError('Event loop is closed')
+RuntimeError: Event loop is closed
+2025-10-30 16:49:28,018 [ERROR] agent: Памылка падчас выканання інструмента schedule
+Traceback (most recent call last):
+  File "D:\Projekts\AmAgent\agent.py", line 144, in _call
+    result = tool_impl.call(prepared)
+  File "D:\Projekts\AmAgent\tools.py", line 200, in call
+    rows = amedis_client.get_schedule(
+        base_url,
+    ...<4 lines>...
+        input.service_id,
+    )
+  File "D:\Projekts\AmAgent\amedis_client.py", line 378, in get_schedule
+    raise RuntimeError(
+        f"Schedule error {response.status_code}: {response.text[:400]}"
+    )
+RuntimeError: Schedule error 400: {"RuMessage":"Проверьте корректность данных","Successfully":false,"Message":"'2023-11-01' is not a valid date"}
+2025-10-30 16:50:12,828 [ERROR] agent: Памылка падчас выканання інструмента schedule
+Traceback (most recent call last):
+  File "D:\Projekts\AmAgent\agent.py", line 144, in _call
+    result = tool_impl.call(prepared)
+  File "D:\Projekts\AmAgent\tools.py", line 200, in call
+    rows = amedis_client.get_schedule(
+        base_url,
+    ...<4 lines>...
+        input.service_id,
+    )
+  File "D:\Projekts\AmAgent\amedis_client.py", line 378, in get_schedule
+    raise RuntimeError(
+        f"Schedule error {response.status_code}: {response.text[:400]}"
+    )
+RuntimeError: Schedule error 400: {"RuMessage":"Проверьте корректность данных","Successfully":false,"Message":"'2023-11-01' is not a valid date"}
+2025-10-30 16:52:29,519 [ERROR] agent: Памылка падчас выканання інструмента schedule
+Traceback (most recent call last):
+  File "D:\Projekts\AmAgent\agent.py", line 144, in _call
+    result = tool_impl.call(prepared)
+  File "D:\Projekts\AmAgent\tools.py", line 200, in call
+    rows = amedis_client.get_schedule(
+        base_url,
+    ...<4 lines>...
+        input.service_id,
+    )
+  File "D:\Projekts\AmAgent\amedis_client.py", line 378, in get_schedule
+    raise RuntimeError(
+        f"Schedule error {response.status_code}: {response.text[:400]}"
+    )
+RuntimeError: Schedule error 400: {"RuMessage":"Проверьте корректность данных","Successfully":false,"Message":"'2023-11-06' is not a valid date"}
+2025-10-30 16:57:15,706 [ERROR] root: Памылка падчас выканання агента: MALFORMED_FUNCTION_CALL - None
+2025-10-30 16:57:34,199 [ERROR] root: Памылка падчас выканання агента: MALFORMED_FUNCTION_CALL - None
+2025-10-30 18:51:03,339 [ERROR] asyncio: Task exception was never retrieved
+future: <Task finished name='Task-33' coro=<AsyncClient.aclose() done, defined at C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py:1978> exception=RuntimeError('Event loop is closed')>
+Traceback (most recent call last):
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_client.py", line 1985, in aclose
+    await self._transport.aclose()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpx\_transports\default.py", line 406, in aclose
+    await self._pool.aclose()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_async\connection_pool.py", line 353, in aclose
+    await self._close_connections(closing_connections)
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_async\connection_pool.py", line 345, in _close_connections
+    await connection.aclose()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_async\connection.py", line 173, in aclose
+    await self._connection.aclose()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_async\http11.py", line 258, in aclose
+    await self._network_stream.aclose()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\httpcore\_backends\anyio.py", line 53, in aclose
+    await self._stream.aclose()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\anyio\streams\tls.py", line 216, in aclose
+    await self.transport_stream.aclose()
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\anyio\_backends\_asyncio.py", line 1314, in aclose
+    self._transport.close()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\asyncio\proactor_events.py", line 109, in close
+    self._loop.call_soon(self._call_connection_lost, None)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 829, in call_soon
+    self._check_closed()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\admin\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 552, in _check_closed
+    raise RuntimeError('Event loop is closed')
+RuntimeError: Event loop is closed
+2025-10-30 18:51:08,737 [ERROR] agent: Памылка падчас выканання інструмента schedule
+Traceback (most recent call last):
+  File "D:\Projekts\AmAgent\agent.py", line 144, in _call
+    result = tool_impl.call(prepared)
+  File "D:\Projekts\AmAgent\tools.py", line 204, in call
+    rows = amedis_client.get_schedule(
+        base_url,
+    ...<4 lines>...
+        input.service_id,
+    )
+  File "D:\Projekts\AmAgent\amedis_client.py", line 378, in get_schedule
+    raise RuntimeError(
+        f"Schedule error {response.status_code}: {response.text[:400]}"
+    )
+RuntimeError: Schedule error 400: {"RuMessage":"Проверьте корректность данных","Successfully":false,"Message":"Слишком большой диапазон даты"}
+2025-10-31 12:19:51,514 [ERROR] agent: Памылка падчас выканання інструмента create_record
+Traceback (most recent call last):
+  File "D:\Projekts\AmAgent\agent.py", line 144, in _call
+    result = tool_impl.call(prepared)
+  File "D:\Projekts\AmAgent\tools.py", line 321, in call
+    input.doctor_id,
+    ^^^^^^^^^^^^^^^
+AttributeError: 'dict' object has no attribute 'doctor_id'

@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Dict, List, Optional
+import re
+import calendar
+from datetime import date
+from typing import Any, Dict, List, Optional, Tuple
 
 from pydantic import BaseModel, Field
 
@@ -18,11 +21,10 @@ DEFAULT_GUEST_TOKEN = os.getenv(
 
 class BaseToolInput(BaseModel):
     base_url: Optional[str] = Field(
-        default=None,
-        description=(
-            "Неабавязковае перазаданнне базавага URL backend. Калі не пазначана, "
-            "будзе выкарыстаны URL па змаўчанні."
-        ),
+        default=None, description="Базавы URL backend (па змаўчанні — з агента)"
+    )
+    token: Optional[str] = Field(
+        default=DEFAULT_GUEST_TOKEN, description="Токен доступу (па змаўчанні — гасцявы)"
     )
 
 
@@ -32,13 +34,8 @@ class DirectionItem(BaseModel):
 
 
 class DirectionsInput(BaseToolInput):
-    token: str = Field(
-        default=DEFAULT_GUEST_TOKEN,
-        description=(
-            "Токен доступу пацыента. Па змаўчанні выкарыстоўваецца госцевы токен "
-            "да аўтарызацыі."
-        ),
-    )
+    base_url: Optional[str] = Field(default=None)
+    token: Optional[str] = Field(default=None)
 
 
 class DirectionsOutput(BaseModel):
@@ -53,8 +50,9 @@ class DirectionsTool:
     description = "Атрымаць спіс напрамкаў прыёму (спецыяльнасцяў)."
 
     def call(self, input: DirectionsInput) -> DirectionsOutput:
-        base_url = input.base_url or amedis_client.BASE_URL_DEFAULT
-        endpoint, rows, _ = amedis_client.discover_directions(base_url, input.token)
+        base_url = getattr(input, "base_url", None) or amedis_client.BASE_URL_DEFAULT
+        token = getattr(input, "token", DEFAULT_GUEST_TOKEN)
+        endpoint, rows, _ = amedis_client.discover_directions(base_url, token)
         items = [
             DirectionItem(id=str(row.get("id")), name=row.get("name"))
             for row in rows
@@ -72,13 +70,8 @@ class DoctorItem(BaseModel):
 
 
 class DoctorsInput(BaseToolInput):
-    token: str = Field(
-        default=DEFAULT_GUEST_TOKEN,
-        description=(
-            "Токен доступу пацыента. Па змаўчанні выкарыстоўваецца госцевы токен "
-            "да аўтарызацыі."
-        ),
-    )
+    base_url: Optional[str] = Field(default=None)
+    token: Optional[str] = Field(default=None)
     direction_id: Optional[str] = Field(
         default=None, description="Ідэнтыфікатар напрамку"
     )
@@ -95,8 +88,9 @@ class DoctorsTool:
     description = "Атрымаць спіс доктараў у межах напрамку."
 
     def call(self, input: DoctorsInput) -> DoctorsOutput:
-        base_url = input.base_url or amedis_client.BASE_URL_DEFAULT
-        rows = amedis_client.get_doctors(base_url, input.token, input.direction_id)
+        base_url = getattr(input, "base_url", None) or amedis_client.BASE_URL_DEFAULT
+        token = getattr(input, "token", DEFAULT_GUEST_TOKEN)
+        rows = amedis_client.get_doctors(base_url, token, input.direction_id)
         doctors = [
             DoctorItem(id=str(row.get("id")), name=row.get("name"), raw=row.get("raw"))
             for row in rows
@@ -117,13 +111,8 @@ class ServiceItem(BaseModel):
 
 
 class ServicesInput(BaseToolInput):
-    token: str = Field(
-        default=DEFAULT_GUEST_TOKEN,
-        description=(
-            "Токен доступу пацыента. Па змаўчанні выкарыстоўваецца госцевы токен "
-            "да аўтарызацыі."
-        ),
-    )
+    base_url: Optional[str] = Field(default=None)
+    token: Optional[str] = Field(default=None)
     direction_id: Optional[str] = Field(
         default=None, description="Ідэнтыфікатар напрамку"
     )
@@ -140,9 +129,10 @@ class ServicesTool:
     description = "Паказаць спіс паслуг для напрамку і іх працягласць."
 
     def call(self, input: ServicesInput) -> ServicesOutput:
-        base_url = input.base_url or amedis_client.BASE_URL_DEFAULT
+        base_url = getattr(input, "base_url", None) or amedis_client.BASE_URL_DEFAULT
+        token = getattr(input, "token", DEFAULT_GUEST_TOKEN)
         rows = amedis_client.get_service_duration(
-            base_url, input.token, input.direction_id
+            base_url, token, input.direction_id
         )
         services = [
             ServiceItem(
@@ -187,13 +177,8 @@ class SlotItem(BaseModel):
 
 
 class ScheduleInput(BaseToolInput):
-    token: str = Field(
-        default=DEFAULT_GUEST_TOKEN,
-        description=(
-            "Токен доступу пацыента. Па змаўчанні выкарыстоўваецца госцевы токен "
-            "да аўтарызацыі."
-        ),
-    )
+    base_url: Optional[str] = Field(default=None)
+    token: Optional[str] = Field(default=None)
     doctor_id: str = Field(description="Ідэнтыфікатар доктара")
     service_id: Optional[str] = Field(
         default=None, description="Ідэнтыфікатар паслугі"
@@ -213,13 +198,15 @@ class ScheduleTool:
     description = "Атрымаць вольныя часавыя слоты для доктара і паслугі."
 
     def call(self, input: ScheduleInput) -> ScheduleOutput:
-        base_url = input.base_url or amedis_client.BASE_URL_DEFAULT
+        base_url = getattr(input, "base_url", None) or amedis_client.BASE_URL_DEFAULT
+        token = getattr(input, "token", DEFAULT_GUEST_TOKEN)
+        start_norm, end_norm = _normalize_date_range(input.date_start, input.date_end)
         rows = amedis_client.get_schedule(
             base_url,
-            input.token,
+            token,
             input.doctor_id,
-            input.date_start,
-            input.date_end,
+            start_norm,
+            end_norm,
             input.service_id,
         )
         slots = [
@@ -234,14 +221,64 @@ class ScheduleTool:
         return ScheduleOutput(slots=slots)
 
 
+def _normalize_date_range(date_start: str, date_end: str) -> Tuple[str, str]:
+    s = (date_start or "").strip().lower()
+    e = (date_end or "").strip().lower()
+
+    phrases_next = {"наступны месяц", "следующий месяц", "next month"}
+    phrases_this = {"гэты месяц", "текущий месяц", "this month"}
+
+    if s in phrases_next or e in phrases_next:
+        today = date.today()
+        y = today.year + (1 if today.month == 12 else 0)
+        m = 1 if today.month == 12 else today.month + 1
+        first = date(y, m, 1)
+        last_day = calendar.monthrange(y, m)[1]
+        last = date(y, m, last_day)
+        return first.strftime("%d.%m.%Y"), last.strftime("%d.%m.%Y")
+
+    if s in phrases_this or e in phrases_this:
+        today = date.today()
+        first = date(today.year, today.month, 1)
+        last_day = calendar.monthrange(today.year, today.month)[1]
+        last = date(today.year, today.month, last_day)
+        return first.strftime("%d.%m.%Y"), last.strftime("%d.%m.%Y")
+
+    if _is_year_month(s) and (not e or _is_year_month(e)):
+        y, m = map(int, s.split("-"))
+        first = date(y, m, 1)
+        last_day = calendar.monthrange(y, m)[1]
+        last = date(y, m, last_day)
+        return first.strftime("%d.%m.%Y"), last.strftime("%d.%m.%Y")
+
+    ds = _to_ddmmyyyy(s) or s
+    de = _to_ddmmyyyy(e) or e
+    return ds, de
+
+
+def _is_year_month(text: str) -> bool:
+    return bool(re.fullmatch(r"\d{4}-\d{2}", text))
+
+
+def _to_ddmmyyyy(text: str) -> Optional[str]:
+    if not text:
+        return None
+    if re.fullmatch(r"\d{2}\.\d{2}\.\d{4}", text):
+        return text
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", text):
+        y, m, d = map(int, text.split("-"))
+        try:
+            dt = date(y, m, d)
+        except ValueError:
+            last_day = calendar.monthrange(y, m)[1]
+            dt = date(y, m, min(d, last_day))
+        return dt.strftime("%d.%m.%Y")
+    return None
+
+
 class CreateRecordInput(BaseToolInput):
-    token: str = Field(
-        default=DEFAULT_GUEST_TOKEN,
-        description=(
-            "Токен доступу пацыента. Па змаўчанні выкарыстоўваецца госцевы токен "
-            "да аўтарызацыі."
-        ),
-    )
+    base_url: Optional[str] = Field(default=None)
+    token: Optional[str] = Field(default=None)
     doctor_id: str = Field(description="Ідэнтыфікатар доктара")
     patient_id: str = Field(description="patientAPIId пацыента")
     startAt: str = Field(description="Дата і час пачатку слоту")
@@ -276,10 +313,11 @@ class CreateRecordTool:
     description = "Стварыць новы запіс да ўрача на аснове выбранага слоту."
 
     def call(self, input: CreateRecordInput) -> CreateRecordOutput:
-        base_url = input.base_url or amedis_client.BASE_URL_DEFAULT
+        base_url = getattr(input, "base_url", None) or amedis_client.BASE_URL_DEFAULT
+        token = getattr(input, "token", DEFAULT_GUEST_TOKEN)
         result = amedis_client.create_record(
             base_url,
-            input.token,
+            token,
             input.doctor_id,
             input.patient_id,
             input.startAt,
@@ -297,13 +335,8 @@ class CreateRecordTool:
 
 
 class ListRecordsInput(BaseToolInput):
-    token: str = Field(
-        default=DEFAULT_GUEST_TOKEN,
-        description=(
-            "Токен доступу пацыента. Па змаўчанні выкарыстоўваецца госцевы токен "
-            "да аўтарызацыі."
-        ),
-    )
+    base_url: Optional[str] = Field(default=None)
+    token: Optional[str] = Field(default=None)
     patient_id: str = Field(description="patientAPIId пацыента")
 
 
@@ -337,9 +370,10 @@ class ListRecordsTool:
     description = "Паказаць усе запісы пацыента."
 
     def call(self, input: ListRecordsInput) -> ListRecordsOutput:
-        base_url = input.base_url or amedis_client.BASE_URL_DEFAULT
+        base_url = getattr(input, "base_url", None) or amedis_client.BASE_URL_DEFAULT
+        token = getattr(input, "token", DEFAULT_GUEST_TOKEN)
         rows = amedis_client.list_patient_records(
-            base_url, input.token, input.patient_id
+            base_url, token, input.patient_id
         )
         records = [
             PatientRecord(
@@ -357,13 +391,8 @@ class ListRecordsTool:
 
 
 class CancelRecordInput(BaseToolInput):
-    token: str = Field(
-        default=DEFAULT_GUEST_TOKEN,
-        description=(
-            "Токен доступу пацыента. Па змаўчанні выкарыстоўваецца госцевы токен "
-            "да аўтарызацыі."
-        ),
-    )
+    base_url: Optional[str] = Field(default=None)
+    token: Optional[str] = Field(default=None)
     record_id: str = Field(description="Ідэнтыфікатар запісу")
     cancel_status: str = Field(
         default="CAN", description="Статус, на які трэба змяніць запіс"
@@ -385,9 +414,10 @@ class CancelRecordTool:
     description = "Адмяніць існы запіс па recordId."
 
     def call(self, input: CancelRecordInput) -> CancelRecordOutput:
-        base_url = input.base_url or amedis_client.BASE_URL_DEFAULT
+        base_url = getattr(input, "base_url", None) or amedis_client.BASE_URL_DEFAULT
+        token = getattr(input, "token", DEFAULT_GUEST_TOKEN)
         result = amedis_client.cancel_record(
-            base_url, input.token, input.record_id, input.cancel_status
+            base_url, token, input.record_id, input.cancel_status
         )
         return CancelRecordOutput(
             status_code=result.get("status_code", 0),

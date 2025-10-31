@@ -20,7 +20,11 @@ def test_curl_cmd_base_contains_tls_flags():
     cmd = client._curl_cmd_base()
     assert "--insecure" in cmd
     assert "--tlsv1.0" in cmd
-    assert "DEFAULT:@SECLEVEL=1" in cmd
+    # On Windows curl uses Schannel backend; OpenSSL cipher strings are invalid.
+    if sys.platform == "win32":
+        assert "DEFAULT:@SECLEVEL=1" not in " ".join(cmd)
+    else:
+        assert "DEFAULT:@SECLEVEL=1" in cmd
 
 
 def test_discover_directions_selects_first_success(monkeypatch):

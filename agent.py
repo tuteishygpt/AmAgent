@@ -13,7 +13,6 @@ from google.adk import Agent
 from google.adk.tools import FunctionTool
 from google.adk.tools import ToolContext
 
-import amedis_client
 from tools import (
     CancelRecordInput,
     CancelRecordTool,
@@ -23,8 +22,6 @@ from tools import (
     DirectionsTool,
     DoctorsInput,
     DoctorsTool,
-    HarAutofillInput,
-    HarAutofillTool,
     ListRecordsInput,
     ListRecordsTool,
     ScheduleInput,
@@ -41,7 +38,6 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_MODEL = os.getenv("AMEDIS_AGENT_MODEL", "gemini-2.5-flash")
 DEFAULT_AGENT_NAME = os.getenv("AMEDIS_AGENT_NAME", "amedis_online_agent")
-DEFAULT_BASE_URL = os.getenv("AMEDIS_BASE_URL", amedis_client.BASE_URL_DEFAULT)
 
 
 GLOBAL_INSTRUCTION = textwrap.dedent(
@@ -58,21 +54,18 @@ GLOBAL_INSTRUCTION = textwrap.dedent(
 AGENT_INSTRUCTION = textwrap.dedent(
     """
     Вядзі дыялог па кроках:
-    1. Спачатку пераканайся, што атрыманы доступ: токен (token=...), patientAPIId і
-       страхоўшчык (Ins_name). Калі чаго няма, акуратна запытай.
-    2. Перад выкарыстаннем інструментаў пераканайся, што ў цябе ёсць патрэбныя
-       параметры. Калі нейкіх дадзеных не хапае, папрасі іх у карыстальніка.
+    1. Спачатку спытай чым дапамагчы
+    2. Перад выкарыстаннем інструментаў правер, ці ёсць патрэбныя параметры. Калі карыстальнік іх не даў, выкарыстоўвай па змаўчанні: base_url з налад агента і гасцявы token. Не прасі іх без неабходнасці.
     3. Для атрымання даведачнай інфармацыі выкарыстоўвай адпаведныя інструменты:
        directions → doctors → services → schedule. Не пераблытай парадак і
        заўсёды паведамляй, як абраць патрэбны ID або слот.
     4. Для працы з запісамі выкарыстоўвай list_records, cancel_record і
        create_record. Пры стварэнні запісу ўдакладні каментар (калі патрэбна) і
        пацвярджэнне карыстальніка.
-    5. Калі карыстальнік даслаў HAR-файл, выкліч har_autofill, каб атрымаць
-       patientAPIId і страхоўшчыка.
     6. Адказвай толькі фактамі, атрыманыя з інструментаў, або пытаннямі для
        ўдакладнення. Калі адбываецца памылка, апішы, што пайшло не так, і
        прапануй наступныя крокі.
+    5. Не размаўляй на іншыя тэмы, акрамя кіравання запісамі.
     """
 )
 
@@ -83,7 +76,7 @@ class AgentSettings:
 
     name: str = DEFAULT_AGENT_NAME
     model: str = DEFAULT_MODEL
-    base_url: str = DEFAULT_BASE_URL
+    base_url: str = ""
 
     def __post_init__(self) -> None:
         self.name = self.name.strip()
@@ -101,13 +94,28 @@ def _with_default_base_url(
 ) -> Any:
     """Ensure that BaseToolInput payloads always carry a base URL."""
 
+    # Handle plain dict payloads coming from ADK before model coercion
+    if isinstance(payload, dict):
+        try:
+            updated = dict(payload)
+            if not updated.get("base_url"):
+                updated["base_url"] = base_url
+            return updated
+        except Exception:  # pragma: no cover - defensive
+            logger.debug("Не атрымалася апрацаваць dict payload для %s", tool_name)
+
     if hasattr(payload, "copy") and hasattr(payload, "base_url"):
         try:
             return payload.copy(update={"base_url": payload.base_url or base_url})
         except Exception:  # pragma: no cover - defensive
             logger.debug("Не атрымалася скапіраваць payload для %s", tool_name)
-    if hasattr(payload, "base_url") and not getattr(payload, "base_url"):
-        setattr(payload, "base_url", base_url)
+    # Try to set attribute even if the model doesn't define the field
+    try:
+        current = getattr(payload, "base_url", None)
+        if not current:
+            object.__setattr__(payload, "base_url", base_url)
+    except Exception:  # pragma: no cover - defensive
+        logger.debug("Не атрымалася задаць base_url для %s", tool_name)
     return payload
 
 
@@ -122,7 +130,16 @@ def _wrap_tool(
     """Build a FunctionTool wrapper around the legacy tool implementation."""
 
     def _call(payload, tool_context: ToolContext | None = None) -> Dict[str, Any]:
-        prepared = _with_default_base_url(payload, base_url=base_url, tool_name=name)
+        # Coerce dict payloads to the tool's Pydantic input model first
+        obj = payload
+        if isinstance(payload, dict):
+            try:
+                obj = input_type(**payload)
+            except Exception:  # pragma: no cover - defensive guard
+                logger.debug("Не атрымалася сканструяваць %s з dict payload", input_type)
+                obj = payload
+
+        prepared = _with_default_base_url(obj, base_url=base_url, tool_name=name)
         try:
             result = tool_impl.call(prepared)
         except Exception as exc:  # pragma: no cover - network/IO defensive guard
@@ -143,33 +160,13 @@ def _wrap_tool(
     return FunctionTool(_call)
 
 
-def _wrap_har_tool(tool_impl: HarAutofillTool, name: str, description: str) -> FunctionTool:
-    """Special wrapper for HAR апрацоўку (base_url не патрэбны)."""
 
-    def _call(payload: HarAutofillInput) -> Dict[str, Any]:
-        try:
-            result = tool_impl.call(payload)
-        except Exception as exc:  # pragma: no cover - defensive guard
-            logger.exception("Памылка HAR інструмента %s", name)
-            return {
-                "error": str(exc),
-                "tool": name,
-            }
-        if hasattr(result, "dict"):
-            return result.dict()
-        if hasattr(result, "model_dump"):
-            return result.model_dump()
-        return result  # pragma: no cover - fallback
-
-    _call.__name__ = name
-    _call.__doc__ = description
-    return FunctionTool(_call)
 
 
 def _build_function_tools(settings: AgentSettings) -> List[FunctionTool]:
     """Пабудаваць набор FunctionTool, адаптаваных для ADK агента."""
 
-    base_url = settings.base_url or amedis_client.BASE_URL_DEFAULT
+    base_url = settings.base_url
 
     tool_specs = [
         (
@@ -227,14 +224,6 @@ def _build_function_tools(settings: AgentSettings) -> List[FunctionTool]:
         for impl, input_type, name, description in tool_specs
     ]
 
-    tools.append(
-        _wrap_har_tool(
-            HarAutofillTool(),
-            name="har_autofill",
-            description="Аналізуе HAR-файл для пошуку patientAPIId і страхоўшчыка.",
-        )
-    )
-
     return tools
 
 
@@ -243,10 +232,9 @@ def build_agent(settings: AgentSettings | None = None) -> Agent:
 
     agent_settings = settings or AgentSettings()
     logger.info(
-        "Ініцыялізацыя Amedis ADK агента: name=%s, model=%s, base_url=%s",
+        "Ініцыялізацыя Amedis ADK агента: name=%s, model=%s",
         agent_settings.name,
         agent_settings.model,
-        agent_settings.base_url,
     )
 
     tools = _build_function_tools(agent_settings)

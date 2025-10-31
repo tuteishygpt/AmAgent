@@ -34,7 +34,13 @@ def resolve_token_path(path: Optional[Path | str] = None) -> Path:
     if config_home:
         base_dir = Path(config_home).expanduser()
     else:
-        base_dir = Path.home() / ".config"
+        # Prefer $HOME if provided (works cross-platform and aligns with tests),
+        # otherwise fall back to the platform-detected home directory.
+        home_env = os.getenv("HOME")
+        if home_env:
+            base_dir = Path(home_env).expanduser() / ".config"
+        else:
+            base_dir = Path.home() / ".config"
 
     return base_dir / "amagent" / _DEFAULT_FILENAME
 

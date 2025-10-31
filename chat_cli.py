@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+from dotenv import load_dotenv
 import argparse
 import asyncio
 import logging
@@ -18,6 +20,9 @@ from google.adk.sessions.in_memory_session_service import InMemorySessionService
 from google.genai import types
 
 from agent import AgentSettings, build_agent
+
+# Load environment variables from .env file
+load_dotenv()
 from gemini_token import (
     GEMINI_API_KEY_ENV,
     ensure_gemini_token,

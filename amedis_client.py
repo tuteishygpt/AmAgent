@@ -15,6 +15,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
+import sys
 from urllib.parse import parse_qs, urlencode, urlparse
 
 # ---------------------------------------------------------------------------
@@ -22,6 +23,9 @@ from urllib.parse import parse_qs, urlencode, urlparse
 # ---------------------------------------------------------------------------
 
 BASE_URL_DEFAULT = "https://online.amedis.by:4422"
+AMEDIS_GUEST_TOKEN = os.getenv(
+    "AMEDIS_GUEST_TOKEN", "Q9j87S4FV12e86475e82V5d44S7c2c2bb_35"
+)
 
 ENDPOINTS = {
     "directions_candidates": [
@@ -49,7 +53,7 @@ ENDPOINTS = {
 def _curl_cmd_base(timeout: int = 25) -> List[str]:
     """Build the base curl command with TLS flags required by the backend."""
 
-    return [
+    cmd = [
         "curl",
         "--silent",
         "--show-error",
@@ -58,9 +62,12 @@ def _curl_cmd_base(timeout: int = 25) -> List[str]:
         "--tlsv1.0",  # allow legacy TLS version
         "--max-time",
         str(timeout),
-        "--ciphers",
-        "DEFAULT:@SECLEVEL=1",
     ]
+    # On Windows curl uses Schannel and does not support OpenSSL cipher strings;
+    # passing --ciphers causes: "schannel: Failed setting algorithm cipher list".
+    if sys.platform != "win32":
+        cmd += ["--ciphers", "DEFAULT:@SECLEVEL=1"]
+    return cmd
 
 
 def _run_curl(cmd: List[str]) -> "ResponseShim":
@@ -69,7 +76,10 @@ def _run_curl(cmd: List[str]) -> "ResponseShim":
     full_cmd = cmd[:]
     if "-i" not in full_cmd and "--include" not in full_cmd:
         full_cmd.insert(1, "-i")
-    out = subprocess.check_output(full_cmd, text=True)
+    # Read as bytes to avoid locale-dependent decoding issues on Windows,
+    # then decode explicitly as UTF-8 with replacement for invalid bytes.
+    out_bytes = subprocess.check_output(full_cmd)
+    out = out_bytes.decode("utf-8", errors="replace")
     parts = out.split("\r\n\r\n")
     if len(parts) < 2:
         parts = out.split("\n\n")
@@ -117,6 +127,12 @@ def read_token_from_file(path: str) -> str:
     if not token:
         raise ValueError("Token file is empty")
     return token
+
+
+def _ensure_token(token: Optional[str]) -> str:
+    """Return provided token or fall back to the built-in guest token."""
+
+    return token or AMEDIS_GUEST_TOKEN
 
 
 def _build_url(
@@ -175,6 +191,7 @@ def discover_directions(base_url: str, token: str) -> Tuple[str, List[Dict[str, 
     Returns a tuple of (endpoint_used, normalized_directions, status_message).
     """
 
+    token = _ensure_token(token)
     for endpoint in ENDPOINTS["directions_candidates"]:
         try:
             response = _api_get(base_url, endpoint, params={"token": token})
@@ -226,6 +243,7 @@ def _normalize_directions(data: Any) -> List[Dict[str, Any]]:
 def get_doctors(
     base_url: str, token: str, id_direction: Optional[str]
 ) -> List[Dict[str, Any]]:
+    token = _ensure_token(token)
     params: Dict[str, Any] = {"token": token}
     if id_direction:
         params["idDirection"] = id_direction
@@ -288,6 +306,7 @@ def _normalize_doctors(data: Any) -> List[Dict[str, Any]]:
 def get_service_duration(
     base_url: str, token: str, id_direction: Optional[str]
 ) -> List[Dict[str, Any]]:
+    token = _ensure_token(token)
     if not id_direction:
         return []
     response = _api_get(
@@ -345,6 +364,7 @@ def get_schedule(
     end_date: str,
     service_id: Optional[str],
 ) -> List[Dict[str, Any]]:
+    token = _ensure_token(token)
     params: Dict[str, Any] = {
         "token": token,
         "doctorIds": str(doctor_id),
@@ -451,6 +471,7 @@ def create_record(
     insurer: str,
     extra: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
+    token = _ensure_token(token)
     data: Dict[str, Any] = {
         "token": token,
         "doctor": str(doctor_id),
@@ -485,6 +506,7 @@ def create_record(
 def list_patient_records(
     base_url: str, token: str, patient_api_id: str
 ) -> List[Dict[str, Any]]:
+    token = _ensure_token(token)
     response = _api_get(
         base_url,
         ENDPOINTS["patient_records"],
@@ -547,6 +569,7 @@ def cancel_record(
     record_id: str,
     cancel_status: str = "CAN",
 ) -> Dict[str, Any]:
+    token = _ensure_token(token)
     data = {
         "token": token,
         "recordId": str(record_id),
@@ -619,6 +642,7 @@ def parse_har_for_patient(har_path: str) -> Dict[str, Any]:
 
 __all__ = [
     "BASE_URL_DEFAULT",
+    "AMEDIS_GUEST_TOKEN",
     "ENDPOINTS",
     "discover_directions",
     "get_doctors",
