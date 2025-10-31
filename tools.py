@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import re
+import json
 import calendar
 from datetime import date
 from typing import Any, Dict, List, Optional, Tuple
@@ -11,6 +12,136 @@ from typing import Any, Dict, List, Optional, Tuple
 from pydantic import BaseModel, Field
 
 import amedis_client
+
+# ---------------------------------------------------------------------------
+# Local routing KB (JSON) and simple resolver
+# ---------------------------------------------------------------------------
+
+# 1) Load routing knowledge (routing JSON) into process memory
+ROUTING_JSON = "amedis_routing.json"
+USE_LOCAL_KB: bool = str(os.getenv("AMEDIS_USE_LOCAL_KB", "0")).strip().lower() in {"1", "true", "yes", "y"}
+KB: Dict[str, Any] | None = None
+try:
+    with open(ROUTING_JSON, "r", encoding="utf-8") as f:
+        KB = json.load(f)
+except Exception:
+    KB = None  # Fallback to remote API when KB is unavailable
+
+# Quick references if KB is present
+ENT: Dict[str, Any] = KB.get("entities", {}) if KB else {}
+IDX: Dict[str, Any] = KB.get("index", {}) if KB else {}
+
+
+class Resolver:
+    """Simple resolver for the new KB structure (entities/index)."""
+
+    def __init__(self, kb: Dict[str, Any]):
+        self.kb = kb
+        self.ent = kb.get("entities", {})
+        self.idx = kb.get("index", {})
+
+        # Precompute lowercase name -> id maps
+        self.service_name2id: Dict[str, str] = {
+            (v.get("service_name") or "").strip().lower(): sid
+            for sid, v in self.ent.get("services", {}).items()
+            if isinstance(v, dict) and isinstance(v.get("service_name"), str)
+        }
+        self.direction_name2id: Dict[str, str] = {
+            (v.get("direction_name") or "").strip().lower(): did
+            for did, v in self.ent.get("directions", {}).items()
+            if isinstance(v, dict) and isinstance(v.get("direction_name"), str)
+        }
+        self.doctor_name2id: Dict[str, str] = {
+            (v.get("doctor_name") or "").strip().lower(): did
+            for did, v in self.ent.get("doctors", {}).items()
+            if isinstance(v, dict) and isinstance(v.get("doctor_name"), str)
+        }
+
+    def normalize(self, text: str) -> Optional[Dict[str, str]]:
+        t = (text or "").strip().lower()
+        if not t:
+            return None
+
+        # Allow direct IDs
+        if t in self.ent.get("services", {}):
+            return {"kind": "service", "id": t}
+        if t in self.ent.get("directions", {}):
+            return {"kind": "direction", "id": t}
+        if t in self.ent.get("doctors", {}):
+            return {"kind": "doctor", "id": t}
+
+        # Match by names
+        if t in self.service_name2id:
+            return {"kind": "service", "id": self.service_name2id[t]}
+        if t in self.direction_name2id:
+            return {"kind": "direction", "id": self.direction_name2id[t]}
+        if t in self.doctor_name2id:
+            return {"kind": "doctor", "id": self.doctor_name2id[t]}
+        return None
+
+    def doctors_for_service(self, service_id: str) -> List[str]:
+        return self.idx.get("by_service", {}).get(service_id, {}).get("doctors", [])
+
+    def services_for_direction(self, direction_id: str) -> List[str]:
+        return self.idx.get("by_direction", {}).get(direction_id, {}).get("services", [])
+
+
+RESOLVER: Resolver | None = Resolver(KB) if KB else None
+
+# 3) Function-style tools helpers
+def resolve_entities(query: str) -> dict:
+    """
+    Resolve a free-form user phrase (service/direction/doctor) to canonical IDs from the routing JSON.
+    Args:
+      query: Natural language like "Удаление папиллом" / "Дерматология" / "Иванов"
+    Returns:
+      { status: "success"|"not_found", entities: [{kind,id}], hints?: {doctors,services,directions} }
+    """
+    if not RESOLVER or not USE_LOCAL_KB:
+        return {"status": "not_found", "entities": []}
+    ent = RESOLVER.normalize(query)
+    if not ent:
+        return {"status": "not_found", "entities": []}
+
+    hints: Dict[str, List[str]] = {}
+    if ent["kind"] == "service":
+        hints["doctors"] = RESOLVER.doctors_for_service(ent["id"])  # type: ignore[arg-type]
+        # Also provide directions that include this service
+        hints["directions"] = IDX.get("by_service", {}).get(ent["id"], {}).get("directions", [])
+    elif ent["kind"] == "direction":
+        hints["services"] = RESOLVER.services_for_direction(ent["id"])  # type: ignore[arg-type]
+    elif ent["kind"] == "doctor":
+        hints["services"] = IDX.get("doctor_to_services", {}).get(ent["id"], [])
+        hints["directions"] = IDX.get("doctor_to_directions", {}).get(ent["id"], [])
+    return {"status": "success", "entities": [ent], "hints": hints}
+
+
+def check_availability(
+    doctor_ids: List[str],
+    duration_min: int,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+) -> dict:
+    """
+    Check appointment availability for one or more doctors.
+    Args:
+      doctor_ids: canonical doctor IDs (e.g., "doc_ivanov")
+      duration_min: service duration in minutes
+      date_from/date_to: optional ISO dates to constrain the search
+    Returns:
+      {status: "success", slots: [{doctor_id, start, end}]}
+    """
+    # NOTE: Placeholder implementation. Integrate with calendar/API if available.
+    if not doctor_ids:
+        return {"status": "success", "slots": []}
+    slots = [
+        {
+            "doctor_id": doctor_ids[0],
+            "start": "2025-11-01T10:00:00+02:00",
+            "end": "2025-11-01T10:20:00+02:00",
+        }
+    ]
+    return {"status": "success", "slots": slots}
 
 
 DEFAULT_GUEST_TOKEN = os.getenv(
@@ -50,6 +181,17 @@ class DirectionsTool:
     description = "Атрымаць спіс напрамкаў прыёму (спецыяльнасцяў)."
 
     def call(self, input: DirectionsInput) -> DirectionsOutput:
+        # If local KB is available, serve directions from it.
+        if KB and USE_LOCAL_KB:
+            directions = ENT.get("directions", {})
+            items = [
+                DirectionItem(id=str(did), name=(meta or {}).get("direction_name"))
+                for did, meta in directions.items()
+                if did is not None
+            ]
+            return DirectionsOutput(endpoint_used="local_kb", directions=items)
+
+        # Fallback to remote API when KB is not available
         base_url = getattr(input, "base_url", None) or amedis_client.BASE_URL_DEFAULT
         token = getattr(input, "token", DEFAULT_GUEST_TOKEN)
         endpoint, rows, _ = amedis_client.discover_directions(base_url, token)
@@ -88,6 +230,34 @@ class DoctorsTool:
     description = "Атрымаць спіс доктараў у межах напрамку."
 
     def call(self, input: DoctorsInput) -> DoctorsOutput:
+        # Prefer local KB if present
+        if KB and USE_LOCAL_KB:
+            doctors_map: Dict[str, Any] = ENT.get("doctors", {})
+            doctor_ids: List[str]
+            if input.direction_id and RESOLVER:
+                # Resolve all services for the given direction, then doctors per service
+                services = RESOLVER.services_for_direction(str(input.direction_id))
+                agg: List[str] = []
+                for sid in services:
+                    agg.extend(RESOLVER.doctors_for_service(sid))
+                # Deduplicate while preserving order
+                seen = set()
+                doctor_ids = [d for d in agg if not (d in seen or seen.add(d))]
+            else:
+                doctor_ids = list(doctors_map.keys())
+
+            doctors = [
+                DoctorItem(
+                    id=str(did),
+                    name=(doctors_map.get(did) or {}).get("doctor_name"),
+                    raw=doctors_map.get(did),
+                )
+                for did in doctor_ids
+                if did is not None
+            ]
+            return DoctorsOutput(doctors=doctors)
+
+        # Fallback to remote API
         base_url = getattr(input, "base_url", None) or amedis_client.BASE_URL_DEFAULT
         token = getattr(input, "token", DEFAULT_GUEST_TOKEN)
         rows = amedis_client.get_doctors(base_url, token, input.direction_id)
@@ -129,6 +299,37 @@ class ServicesTool:
     description = "Паказаць спіс паслуг для напрамку і іх працягласць."
 
     def call(self, input: ServicesInput) -> ServicesOutput:
+        # Prefer local KB if present
+        if KB and USE_LOCAL_KB:
+            services_map: Dict[str, Any] = ENT.get("services", {})
+            # If a direction is provided, filter services by it
+            if input.direction_id and RESOLVER:
+                service_ids = RESOLVER.services_for_direction(str(input.direction_id))
+            else:
+                service_ids = list(services_map.keys())
+
+            def _duration_from_service(srv: Dict[str, Any]) -> Optional[int]:
+                # Accept multiple possible keys, coerce to minutes
+                if not isinstance(srv, dict):
+                    return None
+                value = srv.get("duration_min")
+                if value is None:
+                    value = srv.get("duration") or srv.get("duration_minutes")
+                return _to_int_minutes(value)
+
+            services = [
+                ServiceItem(
+                    id=str(sid),
+                    name=(services_map.get(sid) or {}).get("service_name"),
+                    duration_minutes=_duration_from_service(services_map.get(sid, {})),
+                    raw=services_map.get(sid),
+                )
+                for sid in service_ids
+                if sid is not None
+            ]
+            return ServicesOutput(services=services)
+
+        # Fallback to remote API
         base_url = getattr(input, "base_url", None) or amedis_client.BASE_URL_DEFAULT
         token = getattr(input, "token", DEFAULT_GUEST_TOKEN)
         rows = amedis_client.get_service_duration(
